@@ -12,9 +12,9 @@
  *  5) เอา URL + TOKEN ไปใส่ในแอป (index.html: BACKEND_URL / BACKEND_TOKEN)
  ******************************************************************/
 
-const TOKEN     = 'CHANGE_ME';   // รหัสลับ ตรงกับ BACKEND_TOKEN ใน config.local.js (ค่าจริงอยู่ใน Apps Script ที่ deploy แล้ว)
-const FOLDER_ID = 'CHANGE_ME';   // โฟลเดอร์ homeproject (จาก URL)
-const SHEET_ID  = 'CHANGE_ME';   // Google Sheet สรุป (จาก URL)
+const TOKEN     = 'Home555';                                      // รหัสลับ ตรงกับ BACKEND_TOKEN ในแอป
+const FOLDER_ID = '19N8ufXuS8icsH7DAoirfBGwoGHytILa6';            // โฟลเดอร์ homeproject
+const SHEET_ID  = '1cpIijtr7si-9gBy6V8JV6cI1DqsJ00Hfc1jcfbC8utU'; // Google Sheet สรุป
 const DATA_FILENAME = 'house-build-data.json';
 
 /* ---------- โหลดข้อมูล / ดึงรูป ---------- */

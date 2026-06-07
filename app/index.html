@@ -321,15 +321,13 @@
   <footer>☁️ ซิงค์กับ Google Drive (homeproject) + สรุปลง Sheets · เก็บ cache ในเครื่อง · v0.2</footer>
 </div>
 
-<script src="config.local.js"></script>
 <script>
 /* ============================================================
-   CONFIG — ความลับ (URL/TOKEN/PIN) อยู่ใน config.local.js (ไม่ push ขึ้น git)
+   CONFIG — ฝังตรง (โฮสต์ GitHub Pages แบบเดียวกับ superclinic)
    sections: 'all' = แก้ได้ทุกหัวข้อ | หรือใส่ array ของ key
    ============================================================ */
-const _CFG = (typeof window!=='undefined' && window.APP_CONFIG) || {};
 const USERS = [
-  { name:'Admin', pin:_CFG.ADMIN_PIN||'', role:'admin',  sections:'all' },
+  { name:'Admin', pin:'5555', role:'admin',  sections:'all' },
   { name:'Joo',   pin:'', role:'สมาชิก', sections:'all' },
   { name:'Tiang', pin:'', role:'สมาชิก', sections:'all' },
   { name:'Houng', pin:'', role:'สมาชิก', sections:'all' },
@@ -391,8 +389,8 @@ function seed(){
    ============================================================ */
 const KEY='houseBuildData_v1', SKEY='houseBuildSession_v1', PKEY='houseBuildPins_v1';
 /* ===== Google backend — ใส่ค่าหลัง deploy Apps Script (ว่าง = ใช้ localStorage อย่างเดียว ไม่ sync) ===== */
-const BACKEND_URL = _CFG.BACKEND_URL || '';        // ← ตั้งใน config.local.js
-const BACKEND_TOKEN = _CFG.BACKEND_TOKEN || '';     // ← ตั้งใน config.local.js
+const BACKEND_URL='https://script.google.com/macros/s/AKfycbzcdRUnTrqXMajIcJbyj1wvQojlLdCvJz5gbF5UkEJ6qswJbnKB9zC9G6Z1WPqMs1gMeg/exec';
+const BACKEND_TOKEN='Home555';
 let DATA, USER, _saveTimer=null;
 /* PIN store — รหัสที่ผู้ใช้ตั้งเอง (4 หลัก) เก็บแยกจาก config */
 function getPins(){ try{return JSON.parse(localStorage.getItem(PKEY))||{}}catch(e){return {}} }
