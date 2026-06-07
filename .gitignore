@@ -1,0 +1,15 @@
+# ===== ความลับ (ห้าม push) =====
+app/config.local.js
+backend/Code.local.gs
+
+# ===== เอกสารส่วนตัว/ภายใน (งบ · ครอบครัว · แผน · hub ภายใน) — กันขึ้น public =====
+requirements.md
+plan.md
+notion/
+kkcallmd/
+
+# ===== ทั่วไป =====
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
