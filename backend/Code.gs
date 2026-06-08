@@ -21,6 +21,8 @@ const DATA_FILENAME = 'house-build-data.json';
 function doGet(e){
   if (String(e.parameter.token||'') !== TOKEN) return _json({ok:false, error:'bad token'});
   if (e.parameter.action === 'image') return getImage(e.parameter.id);   // ดึงรูป (base64) ตาม fileId
+  if (e.parameter.action === 'listBackups') return listBackups();
+  if (e.parameter.action === 'getBackup') return getBackup(e.parameter.id);
   const f = _dataFile(false);
   const data = f ? JSON.parse(f.getBlob().getDataAsString() || 'null') : null;
   return _json({ok:true, data:data});
@@ -33,6 +35,7 @@ function doPost(e){
   if (String(body.token||'') !== TOKEN) return _json({ok:false, error:'bad token'});
   if (body.action === 'upload')   return uploadImage(body);
   if (body.action === 'delImage') return delImageFile(body.fileId);
+  if (body.action === 'backup')   return backupData(body);
   // default = save ข้อมูลทั้งก้อน
   const f = _dataFile(true);
   f.setContent(JSON.stringify(body.data || {}));
@@ -59,6 +62,30 @@ function getImage(id){
 function delImageFile(id){
   try{ DriveApp.getFileById(id).setTrashed(true); return _json({ok:true}); }
   catch(err){ return _json({ok:false, error:'not found'}); }
+}
+
+/* ---------- Backup (โฟลเดอร์ backups/ · 1 ไฟล์ต่อวัน · ไม่รวมรูป) ---------- */
+function backupData(body){
+  const folder = _subfolder(DriveApp.getFolderById(FOLDER_ID), 'backups');
+  const name = 'backup-' + (body.date || Utilities.formatDate(new Date(),'GMT+7','yyyy-MM-dd')) + '.json';
+  const content = JSON.stringify(body.data || {});
+  const it = folder.getFilesByName(name);
+  if (it.hasNext()) { const f = it.next(); f.setContent(content); return _json({ok:true, name:name, id:f.getId()}); }
+  const f = folder.createFile(name, content, 'application/json');
+  return _json({ok:true, name:name, id:f.getId()});
+}
+function listBackups(){
+  const folder = _subfolder(DriveApp.getFolderById(FOLDER_ID), 'backups');
+  const it = folder.getFiles(); const arr = [];
+  while (it.hasNext()) { const f = it.next();
+    arr.push({ id:f.getId(), name:f.getName(), at:Utilities.formatDate(f.getLastUpdated(),'GMT+7','yyyy-MM-dd HH:mm') }); }
+  arr.sort(function(a,b){ return b.name.localeCompare(a.name); });
+  return _json({ok:true, backups:arr});
+}
+function getBackup(id){
+  try{ const f = DriveApp.getFileById(id);
+    return _json({ok:true, data:JSON.parse(f.getBlob().getDataAsString() || 'null')});
+  }catch(err){ return _json({ok:false, error:'not found'}); }
 }
 function _imgFolder(secName, sub){
   let f = _subfolder(DriveApp.getFolderById(FOLDER_ID), IMAGES_ROOT);
