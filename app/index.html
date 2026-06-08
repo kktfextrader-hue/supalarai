@@ -252,6 +252,10 @@
   .txn-note{color:var(--muted);font-size:12px}
   .txn-amt{font-weight:700;white-space:nowrap} .txn-amt.out{color:#cc5b5b} .txn-amt.in{color:#2e8b57}
   .txn-del{background:transparent;border:none;color:#cc5b5b;cursor:pointer;font-size:15px;padding:2px 4px}
+  .txn-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .txn-img-prev{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#1e7a45}
+  .bill-prev-img{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+  .bill-prev-x{background:transparent;border:none;color:#cc5b5b;cursor:pointer;font-size:13px;padding:0 2px}
   .sec-search{width:230px;max-width:42vw;padding:8px 11px;border:1px solid var(--line);border-radius:20px;font-size:13px;background:#fff}
   .sec-search:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,49,94,.1)}
 
@@ -631,7 +635,7 @@ function userSelect(s,it,field,cur){
 function itemHTML(s,it,edit){
   const dis=edit?'':'disabled';
   // เปิดอยู่ถ้า: อยู่ใน expandedItems · หรือยังไม่มีชื่อ (การ์ดเปล่า กางให้กรอก)
-  const open = expandedItems.has(it.id) || !(it.title||'').trim();
+  const open = expandedItems.has(it.id);   // หดเป็น default · กางเฉพาะที่ผู้ใช้กด/เพิ่งเพิ่ม
   const range=thRange(it.created,it.due);
   const mini=[ range?('📅 '+range):'', it.owner?('👤 '+esc(it.owner)):'' ].filter(Boolean).join('&nbsp;&nbsp;');
   const subOpts=(s.subs&&s.subs.length)?`<div class="fld"><label>หัวข้อย่อย (subtopic)<select ${dis} onchange="upd('${s.key}','${it.id}','sub',this.value)"><option value="">— เลือกหัวข้อย่อย —</option>${s.subs.map(x=>`<option ${it.sub===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label></div>`:'';
@@ -740,7 +744,12 @@ function renderCashbook(edit){
         <label>วันที่<input id="txnDate" type="date" value="${today()}"></label>
         <label>โน้ต<input id="txnNote" placeholder="(ไม่บังคับ)" onkeydown="if(event.key==='Enter')addTxn()"></label>
       </div>
-      <div style="text-align:right"><button class="btn" onclick="addTxn()">💾 บันทึกรายการ</button></div>
+      <div class="txn-actions">
+        <button type="button" class="btn sm ghost" onclick="attachTxnImage()">🧾 แนบบิล/รูป</button>
+        <span id="txnImgPreview" class="txn-img-prev"></span>
+        <span style="flex:1"></span>
+        <button class="btn" onclick="addTxn()">💾 บันทึกรายการ</button>
+      </div>
     </div>`;
   }
   // กรอบ 3: ประวัติล่าสุด 10
@@ -785,14 +794,44 @@ function addTxn(){
     cat:(document.getElementById('txnCat').value||'').trim(),
     date:(document.getElementById('txnDate').value||today()),
     note:(document.getElementById('txnNote').value||'').trim(),
+    img:pendingBillImg||null,
     by:(USER?USER.name:''), ts:Date.now() };
-  (DATA.txns=DATA.txns||[]).push(t);
-  logEvent(`${t.type==='out'?'💸 รายจ่าย':'💰 รายรับ'} ${fmtMoney(amt)} · ${t.cat||'-'}`, 'budget');
+  (DATA.txns=DATA.txns||[]).push(t); pendingBillImg=null;
+  logEvent(`${t.type==='out'?'💸 รายจ่าย':'💰 รายรับ'} ${fmtMoney(amt)} · ${t.cat||'-'}${t.img?' 🧾':''}`, 'budget');
   save(); renderBudget(SECTIONS.find(s=>s.key==='budget'));
   const a=document.getElementById('txnAmt'); if(a) a.focus();
 }
-function delTxn(id){ if(!confirm('ลบรายการนี้?')) return; DATA.txns=(DATA.txns||[]).filter(t=>t.id!==id);
+function delTxn(id){ if(!confirm('ลบรายการนี้?')) return;
+  const t=(DATA.txns||[]).find(x=>x.id===id);
+  if(t&&t.img&&t.img.fileId&&BACKEND_URL){ fetch(BACKEND_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'delImage',token:BACKEND_TOKEN,fileId:t.img.fileId})}).catch(()=>{}); }
+  DATA.txns=(DATA.txns||[]).filter(x=>x.id!==id);
   logEvent('🗑 ลบรายการเงิน','budget'); save(); renderBudget(SECTIONS.find(s=>s.key==='budget')); }
+// ----- แนบบิล/รูป ในฟอร์มรายรับ-รายจ่าย -----
+let pendingBillImg=null;
+function attachTxnImage(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
+    const prev=document.getElementById('txnImgPreview'); if(prev) prev.textContent='⏳ กำลังอัป…';
+    let dataUrl; try{ dataUrl=await resizeImage(f); }catch(e){ if(prev)prev.textContent='อัปไม่สำเร็จ'; return; }
+    const cat=(document.getElementById('txnCat')||{}).value||'';
+    if(BACKEND_URL){
+      try{ const res=await fetch(BACKEND_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body:JSON.stringify({action:'upload',token:BACKEND_TOKEN,sec:'budget',secName:'บิล',sub:cat,title:'บิล '+(cat||''),name:f.name,dataUrl})});
+        const j=await res.json();
+        if(j&&j.ok&&j.fileId){ _imgCache[j.fileId]=dataUrl; pendingBillImg={fileId:j.fileId,name:j.name||f.name}; }
+        else { if(prev)prev.textContent='อัปไม่สำเร็จ'; return; }
+      }catch(e){ if(prev)prev.textContent='อัปไม่สำเร็จ (เช็คเน็ต)'; return; }
+    } else { pendingBillImg={data:dataUrl,name:f.name}; }
+    renderBillPreview();
+  };
+  inp.click();
+}
+function renderBillPreview(){
+  const prev=document.getElementById('txnImgPreview'); if(!prev) return;
+  if(!pendingBillImg){ prev.innerHTML=''; return; }
+  const src=pendingBillImg.data||(pendingBillImg.fileId&&_imgCache[pendingBillImg.fileId])||'';
+  prev.innerHTML=`<img src="${src}" alt="" class="bill-prev-img"><button type="button" class="bill-prev-x" title="เอาออก" onclick="pendingBillImg=null;renderBillPreview()">✕</button> แนบบิลแล้ว`;
+}
 
 /* ---------- log (activity log อ่านอย่างเดียว) ---------- */
 function renderLog(){
@@ -820,14 +859,36 @@ let libView='home';
 function showLibrary(v){ libView=v||'home'; renderLibrary(); }
 function renderLibrary(){
   if(libView==='images') return renderImageGallery();
+  if(libView==='bills') return renderBillGallery();
   let h=`<div class="section-head"><h2>📚 Library</h2><span class="meta">รวมเครื่องมือ/คลังของโปรเจกต์</span></div>`;
   h+=`<div class="lib-grid">`;
   h+=`<button class="lib-card" onclick="showLibrary('images')">
         <span class="lib-ic">🖼</span><span class="lib-tt">รวมรูปภาพ</span>
-        <span class="lib-ds">ภาพจากทุกหัวข้อ แยกตามหมวด</span></button>`;
-  for(let i=0;i<8;i++) h+=`<button class="lib-card empty" title="ว่าง (ไว้เพิ่มทีหลัง)"></button>`;
+        <span class="lib-ds">ภาพจากการ์ดหัวข้อ แยกตามหมวด</span></button>`;
+  h+=`<button class="lib-card" onclick="showLibrary('bills')">
+        <span class="lib-ic">🧾</span><span class="lib-tt">บิล</span>
+        <span class="lib-ds">ใบเสร็จ/บิล จากรายรับ-รายจ่าย แยกตามหมวด</span></button>`;
+  for(let i=0;i<7;i++) h+=`<button class="lib-card empty" title="ว่าง (ไว้เพิ่มทีหลัง)"></button>`;
   h+=`</div>`;
   document.getElementById('main').innerHTML=h;
+}
+function renderBillGallery(){
+  const txns=(DATA.txns||[]).filter(t=>t.img);
+  let h=`<div class="section-head"><button class="btn sm ghost" onclick="showLibrary('home')">← กลับ</button>
+    <h2 style="margin-left:8px">🧾 บิล / ใบเสร็จ</h2><span class="meta">${txns.length} ใบ</span></div>`;
+  const byCat={}; txns.forEach(t=>{ const c=t.cat||'(ไม่ระบุหมวด)'; (byCat[c]=byCat[c]||[]).push(t); });
+  const cats=Object.keys(byCat);
+  if(!cats.length){ h+=`<p style="color:var(--muted)">ยังไม่มีบิล — แนบบิลได้ตอนคีย์รายรับ-รายจ่าย (ปุ่ม 🧾 ในฟอร์ม)</p>`;
+    document.getElementById('main').innerHTML=h; return; }
+  cats.forEach(c=>{ const list=byCat[c];
+    h+=`<div class="gal-sec"><div class="gal-head">📁 ${esc(c)} <span class="gal-n">${list.length} ใบ</span></div><div class="img-strip">`;
+    list.forEach(t=>{ const src=(t.img.data)||(t.img.fileId&&_imgCache[t.img.fileId])||'';
+      const attr=src?`src="${src}"`:(t.img.fileId?`data-fileid="${esc(t.img.fileId)}"`:'');
+      const out=t.type==='out';
+      h+=`<div class="img-thumb gal-thumb" title="${esc(thDate(t.date))} · ${out?'จ่าย':'รับ'} ${fmtMoney(t.amount)}${t.note?' · '+esc(t.note):''}"><img ${attr} alt=""></div>`; });
+    h+=`</div></div>`;
+  });
+  document.getElementById('main').innerHTML=h; loadImages();
 }
 function renderImageGallery(){
   let h=`<div class="section-head"><button class="btn sm ghost" onclick="showLibrary('home')">← กลับ</button>
