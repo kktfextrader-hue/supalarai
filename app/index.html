@@ -355,7 +355,7 @@
     <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"
       oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" onkeydown="if(event.key==='Enter')doLogin()">
     <div id="pinHint" class="pin-hint"></div>
-    <div class="keep"><input type="checkbox" id="keepLogin"><label for="keepLogin" style="margin:0;color:var(--ink)">จำการเข้าสู่ระบบในเครื่องนี้ (ไม่ติ๊ก = ถาม PIN ทุกครั้ง)</label></div>
+    <div class="keep"><input type="checkbox" id="keepLogin" checked><label for="keepLogin" style="margin:0;color:var(--ink)">จำการเข้าสู่ระบบในเครื่องนี้</label></div>
     <button onclick="doLogin()">เข้าสู่ระบบ</button>
     <div class="err" id="loginErr"></div>
   </div>
