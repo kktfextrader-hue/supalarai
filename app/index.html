@@ -215,6 +215,43 @@
   .gal-head{font-weight:700;color:var(--brand-d);margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:5px}
   .gal-n{font-size:12px;color:var(--muted);font-weight:400}
   .gal-thumb{width:110px;height:110px}
+  /* ===== สมุดบัญชีรายรับ-รายจ่าย ===== */
+  .cash-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+  @media(max-width:560px){.cash-summary{grid-template-columns:1fr}}
+  .cash-stat{border-radius:12px;padding:13px 15px;border:1px solid var(--line);background:#fff}
+  .cash-stat .cs-lbl{font-size:12px;color:var(--muted)}
+  .cash-stat .cs-val{font-size:22px;font-weight:800;margin-top:3px;font-family:var(--serif)}
+  .cash-stat.in .cs-val{color:#2e8b57} .cash-stat.out .cs-val{color:#cc5b5b}
+  .cash-stat.bal .cs-val{color:var(--navy)} .cash-stat .cs-val.neg{color:#cc5b5b}
+  .cash-box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 17px;margin-bottom:14px}
+  .cash-box-title{font-weight:700;color:var(--navy);margin-bottom:12px}
+  .donut-wrap{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+  .donut{width:170px;height:170px;border-radius:50%;flex-shrink:0;position:relative}
+  .donut.empty{background:#eef0f3}
+  .donut-hole{position:absolute;inset:27%;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .donut-total{font-weight:800;font-size:16px;color:var(--navy);font-family:var(--serif)}
+  .donut-cap{font-size:10px;color:var(--muted);line-height:1.2}
+  .legend{flex:1;min-width:180px;display:flex;flex-direction:column;gap:7px}
+  .leg-row{display:flex;align-items:center;gap:9px;font-size:13.5px}
+  .leg-dot{width:13px;height:13px;border-radius:4px;flex-shrink:0}
+  .leg-name{flex:1;color:var(--ink)} .leg-val{color:var(--muted);font-size:12px;white-space:nowrap}
+  .txn-type{display:flex;gap:8px;margin-bottom:12px}
+  .tt-btn{flex:1;padding:9px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer}
+  .tt-btn.out.on{border-color:#cc5b5b;background:#fdecec;color:#c0392b}
+  .tt-btn.in.on{border-color:#2e8b57;background:#e9f6ee;color:#1e7a45}
+  .txn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  @media(max-width:560px){.txn-grid{grid-template-columns:1fr}}
+  .txn-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  .txn-grid input{padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:15px;background:#fff}
+  .txn-list{display:flex;flex-direction:column;gap:6px}
+  .txn-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fcfbf8;font-size:14px}
+  .txn-date{font-size:12px;color:var(--muted);min-width:60px;white-space:nowrap}
+  .txn-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .txn-badge.out{background:#fdecec;color:#c0392b} .txn-badge.in{background:#e9f6ee;color:#1e7a45}
+  .txn-cat{flex:1;min-width:0;color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+  .txn-note{color:var(--muted);font-size:12px}
+  .txn-amt{font-weight:700;white-space:nowrap} .txn-amt.out{color:#cc5b5b} .txn-amt.in{color:#2e8b57}
+  .txn-del{background:transparent;border:none;color:#cc5b5b;cursor:pointer;font-size:15px;padding:2px 4px}
   .sec-search{width:230px;max-width:42vw;padding:8px 11px;border:1px solid var(--line);border-radius:20px;font-size:13px;background:#fff}
   .sec-search:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,49,94,.1)}
 
@@ -397,6 +434,7 @@ function seed(){
     budget:[ bud() ],
     library:[],
     idea:[ mk() ],
+    txns:[],
     log:[],
   };
 }
@@ -650,51 +688,111 @@ function itemHTML(s,it,edit){
   </div>`;
 }
 
-/* ---------- budget (2 แท็บ: วางงบประมาณ / บันทึกรายจ่าย · คงตาราง) ---------- */
-let budgetTab='วางงบประมาณ';
+/* ---------- budget: สมุดรายรับ-รายจ่าย (ชาร์ต+คีย์+ประวัติ) + วางงบประมาณ ---------- */
+const TXN_COLORS=['#15315e','#c8a14a','#3da35a','#e8902e','#cc5b5b','#3a86c8','#7a5b16','#9b59b6','#1f9e8f','#b5651d'];
+let budgetTab='รายรับ-รายจ่าย', txnType='out';
 function setBudgetTab(t){ budgetTab=t; renderBudget(SECTIONS.find(s=>s.key==='budget')); }
+function setTxnType(t){ txnType=t; renderBudget(SECTIONS.find(s=>s.key==='budget')); }
 function renderBudget(s){
-  const edit=canEdit('budget'), rows=DATA.budget||[];
-  const TABS=['วางงบประมาณ','บันทึกรายจ่าย'];
-  if(!TABS.includes(budgetTab)) budgetTab='วางงบประมาณ';
-  const plan=budgetTab==='วางงบประมาณ';
-  let tp=0,ta=0;
-  let h=`<div class="section-head"><h2>${s.icon} ${s.name}</h2><span class="spacer"></span>
-    ${edit&&plan?`<button class="btn sm" onclick="addBudget()">+ เพิ่มหมวด</button>`:''}</div>`;
+  const edit=canEdit('budget');
+  const TABS=['รายรับ-รายจ่าย','วางงบประมาณ'];
+  if(!TABS.includes(budgetTab)) budgetTab='รายรับ-รายจ่าย';
+  let h=`<div class="section-head"><h2>${s.icon} ${s.name}</h2></div>`;
   h+=`<div class="bud-tabs">${TABS.map(t=>`<button class="bud-tab ${budgetTab===t?'on':''}" onclick="setBudgetTab('${t}')">${t}</button>`).join('')}</div>`;
   if(!edit) h+=`<div class="readonly-note">🔒 ดูได้อย่างเดียว</div>`;
-
-  if(plan){
-    // ---- วางงบประมาณ: ตั้งงบต่อหมวด ----
-    h+=`<table class="budget"><thead><tr><th>หมวด</th><th>งบที่ตั้งไว้</th><th>สถานะ</th>${edit?'<th></th>':''}</tr></thead><tbody>`;
-    rows.forEach(r=>{ tp+=+r.planned||0;
-      h+=`<tr>
-        <td><input class="title" style="width:100%" value="${esc(r.title)}" ${edit?'':'disabled'} onchange="upd('budget','${r.id}','title',this.value)"></td>
-        <td class="r"><input class="num" type="number" value="${r.planned||0}" ${edit?'':'disabled'} onchange="upd('budget','${r.id}','planned',+this.value)"></td>
-        <td><select ${edit?'':'disabled'} onchange="upd('budget','${r.id}','status',this.value)">${STATUSES.map(st=>`<option ${r.status===st?'selected':''}>${st}</option>`).join('')}</select></td>
-        ${edit?`<td><button class="del" onclick="delItem('budget','${r.id}')">🗑</button></td>`:''}
-      </tr>`;
-    });
-    if(!rows.length) h+=`<tr><td colspan="${edit?4:3}" style="color:var(--muted)">ยังไม่มีหมวด — กด "+ เพิ่มหมวด"</td></tr>`;
-    h+=`</tbody><tfoot><tr><td>รวมงบที่ตั้งไว้</td><td class="r">${fmt(tp)}</td><td></td>${edit?'<td></td>':''}</tr></tfoot></table>
-      <p style="color:var(--muted);font-size:13px;margin-top:10px">💡 อย่าลืมเผื่อค่าใช้จ่ายแฝง 15-20% (มิเตอร์ถาวร · ออกแบบ · FF&E · ประกัน)</p>`;
-  } else {
-    // ---- บันทึกรายจ่าย: ลงยอดใช้จริงเทียบงบ ----
-    h+=`<table class="budget"><thead><tr><th>หมวด</th><th>งบที่ตั้งไว้</th><th>ใช้จริง</th><th>คงเหลือ</th></tr></thead><tbody>`;
-    rows.forEach(r=>{ const diff=(+r.planned||0)-(+r.actual||0); tp+=+r.planned||0; ta+=+r.actual||0;
-      h+=`<tr>
-        <td>${esc(r.title)||'<span style="color:var(--muted)">(ไม่มีชื่อ)</span>'}</td>
-        <td class="r" style="color:var(--muted)">${fmt(+r.planned||0)}</td>
-        <td class="r"><input class="num" type="number" value="${r.actual||0}" ${edit?'':'disabled'} onchange="upd('budget','${r.id}','actual',+this.value)"></td>
-        <td class="r ${diff<0?'neg':''}">${fmt(diff)}</td>
-      </tr>`;
-    });
-    if(!rows.length) h+=`<tr><td colspan="4" style="color:var(--muted)">ยังไม่มีหมวด — ไปตั้งงบที่แท็บ "วางงบประมาณ" ก่อน</td></tr>`;
-    h+=`</tbody><tfoot><tr><td>รวม</td><td class="r">${fmt(tp)}</td><td class="r">${fmt(ta)}</td><td class="r ${tp-ta<0?'neg':''}">${fmt(tp-ta)}</td></tr></tfoot></table>
-      <p style="color:var(--muted);font-size:13px;margin-top:10px">💡 ช่อง "คงเหลือ" = งบที่ตั้งไว้ − ใช้จริง · ติดลบ = เกินงบ (แดง)</p>`;
-  }
+  h += (budgetTab==='รายรับ-รายจ่าย') ? renderCashbook(edit) : renderBudgetPlan(edit);
   document.getElementById('main').innerHTML=h;
 }
+function donutChart(slices){
+  const total=slices.reduce((a,s)=>a+s.value,0);
+  if(!total) return `<div class="donut empty"><div class="donut-hole"><div class="donut-cap">ยังไม่มี<br>รายจ่าย</div></div></div>`;
+  let acc=0; const stops=slices.map(s=>{ const a=acc/total*100; acc+=s.value; const b=acc/total*100; return `${s.color} ${a}% ${b}%`; }).join(',');
+  return `<div class="donut" style="background:conic-gradient(${stops})"><div class="donut-hole"><div class="donut-total">${fmtMoney(total)}</div><div class="donut-cap">รายจ่ายรวม (บาท)</div></div></div>`;
+}
+function renderCashbook(edit){
+  const txns=DATA.txns||[], rows=DATA.budget||[];
+  const income=txns.filter(t=>t.type==='in').reduce((a,t)=>a+(+t.amount||0),0);
+  const expense=txns.filter(t=>t.type==='out').reduce((a,t)=>a+(+t.amount||0),0);
+  const bal=income-expense;
+  const byCat={}; txns.filter(t=>t.type==='out').forEach(t=>{ const c=t.cat||'อื่นๆ'; byCat[c]=(byCat[c]||0)+(+t.amount||0); });
+  const slices=Object.keys(byCat).map(c=>({label:c,value:byCat[c]})).sort((a,b)=>b.value-a.value).map((sl,i)=>({...sl,color:TXN_COLORS[i%TXN_COLORS.length]}));
+  // กรอบ 1: สรุป + โดนัท
+  let h=`<div class="cash-summary">
+    <div class="cash-stat in"><div class="cs-lbl">รายรับรวม</div><div class="cs-val">${fmtMoney(income)}</div></div>
+    <div class="cash-stat out"><div class="cs-lbl">รายจ่ายรวม</div><div class="cs-val">${fmtMoney(expense)}</div></div>
+    <div class="cash-stat bal"><div class="cs-lbl">คงเหลือ</div><div class="cs-val ${bal<0?'neg':''}">${fmtMoney(bal)}</div></div>
+  </div>
+  <div class="cash-box"><div class="cash-box-title">📊 รายจ่ายแยกตามหมวด</div>
+    <div class="donut-wrap">${donutChart(slices)}
+      <div class="legend">${slices.length?slices.map(sl=>`<div class="leg-row"><span class="leg-dot" style="background:${sl.color}"></span><span class="leg-name">${esc(sl.label)}</span><span class="leg-val">${fmtMoney(sl.value)} · ${expense?Math.round(sl.value/expense*100):0}%</span></div>`).join(''):'<div style="color:var(--muted)">ยังไม่มีรายจ่าย — คีย์ด้านล่างเพื่อเริ่ม</div>'}</div>
+    </div></div>`;
+  // กรอบ 2: คีย์รายการ
+  if(edit){
+    const cats=[...new Set([...rows.map(r=>r.title).filter(Boolean), ...txns.map(t=>t.cat).filter(Boolean)])];
+    h+=`<div class="cash-box"><div class="cash-box-title">✏️ บันทึกรายรับ-รายจ่าย</div>
+      <div class="txn-type">
+        <button type="button" class="tt-btn out ${txnType==='out'?'on':''}" onclick="setTxnType('out')">− รายจ่าย</button>
+        <button type="button" class="tt-btn in ${txnType==='in'?'on':''}" onclick="setTxnType('in')">+ รายรับ</button>
+      </div>
+      <div class="txn-grid">
+        <label>จำนวนเงิน (บาท)<input id="txnAmt" type="number" inputmode="decimal" placeholder="0" onkeydown="if(event.key==='Enter')addTxn()"></label>
+        <label>หมวด<input id="txnCat" list="catlist" placeholder="เช่น งานโครงสร้าง"><datalist id="catlist">${cats.map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist></label>
+        <label>วันที่<input id="txnDate" type="date" value="${today()}"></label>
+        <label>โน้ต<input id="txnNote" placeholder="(ไม่บังคับ)" onkeydown="if(event.key==='Enter')addTxn()"></label>
+      </div>
+      <div style="text-align:right"><button class="btn" onclick="addTxn()">💾 บันทึกรายการ</button></div>
+    </div>`;
+  }
+  // กรอบ 3: ประวัติล่าสุด 10
+  const recent=txns.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||((b.ts||0)-(a.ts||0))).slice(0,10);
+  h+=`<div class="cash-box"><div class="cash-box-title">🧾 ประวัติล่าสุด ${txns.length>10?`(10 จาก ${txns.length})`:`(${txns.length})`}</div>`;
+  if(!recent.length){ h+=`<div style="color:var(--muted)">ยังไม่มีรายการ — คีย์ที่กรอบด้านบน</div>`; }
+  else { h+=`<div class="txn-list">`;
+    recent.forEach(t=>{ const out=t.type==='out';
+      h+=`<div class="txn-row">
+        <span class="txn-date">${thDate(t.date)}</span>
+        <span class="txn-badge ${out?'out':'in'}">${out?'จ่าย':'รับ'}</span>
+        <span class="txn-cat">${esc(t.cat||'-')}${t.note?` · <span class="txn-note">${esc(t.note)}</span>`:''}</span>
+        <span class="txn-amt ${out?'out':'in'}">${out?'−':'+'}${fmtMoney(t.amount)}</span>
+        ${edit?`<button class="txn-del" title="ลบ" onclick="delTxn('${t.id}')">🗑</button>`:''}
+      </div>`; });
+    h+=`</div>`;
+  }
+  h+=`</div>`;
+  return h;
+}
+function renderBudgetPlan(edit){
+  const rows=DATA.budget||[]; let tp=0;
+  let h=`<div style="text-align:right;margin-bottom:8px">${edit?`<button class="btn sm" onclick="addBudget()">+ เพิ่มหมวด</button>`:''}</div>
+    <table class="budget"><thead><tr><th>หมวด</th><th>งบที่ตั้งไว้</th><th>สถานะ</th>${edit?'<th></th>':''}</tr></thead><tbody>`;
+  rows.forEach(r=>{ tp+=+r.planned||0;
+    h+=`<tr>
+      <td><input class="title" style="width:100%" value="${esc(r.title)}" ${edit?'':'disabled'} onchange="upd('budget','${r.id}','title',this.value)"></td>
+      <td class="r"><input class="num" type="number" value="${r.planned||0}" ${edit?'':'disabled'} onchange="upd('budget','${r.id}','planned',+this.value)"></td>
+      <td><select ${edit?'':'disabled'} onchange="upd('budget','${r.id}','status',this.value)">${STATUSES.map(st=>`<option ${r.status===st?'selected':''}>${st}</option>`).join('')}</select></td>
+      ${edit?`<td><button class="del" onclick="delItem('budget','${r.id}')">🗑</button></td>`:''}
+    </tr>`;
+  });
+  if(!rows.length) h+=`<tr><td colspan="${edit?4:3}" style="color:var(--muted)">ยังไม่มีหมวด — กด "+ เพิ่มหมวด"</td></tr>`;
+  h+=`</tbody><tfoot><tr><td>รวมงบที่ตั้งไว้</td><td class="r">${fmt(tp)}</td><td></td>${edit?'<td></td>':''}</tr></tfoot></table>
+    <p style="color:var(--muted);font-size:13px;margin-top:10px">💡 ตั้งงบต่อหมวดที่นี่ → หมวดจะไปเป็นตัวเลือกตอนคีย์รายจ่าย · เผื่อค่าใช้จ่ายแฝง 15-20%</p>`;
+  return h;
+}
+function addTxn(){
+  const amt=+(document.getElementById('txnAmt').value||0);
+  if(!amt||amt<=0){ alert('ใส่จำนวนเงินก่อน'); return; }
+  const t={ id:uid(), type:txnType, amount:amt,
+    cat:(document.getElementById('txnCat').value||'').trim(),
+    date:(document.getElementById('txnDate').value||today()),
+    note:(document.getElementById('txnNote').value||'').trim(),
+    by:(USER?USER.name:''), ts:Date.now() };
+  (DATA.txns=DATA.txns||[]).push(t);
+  logEvent(`${t.type==='out'?'💸 รายจ่าย':'💰 รายรับ'} ${fmtMoney(amt)} · ${t.cat||'-'}`, 'budget');
+  save(); renderBudget(SECTIONS.find(s=>s.key==='budget'));
+  const a=document.getElementById('txnAmt'); if(a) a.focus();
+}
+function delTxn(id){ if(!confirm('ลบรายการนี้?')) return; DATA.txns=(DATA.txns||[]).filter(t=>t.id!==id);
+  logEvent('🗑 ลบรายการเงิน','budget'); save(); renderBudget(SECTIONS.find(s=>s.key==='budget')); }
 
 /* ---------- log (activity log อ่านอย่างเดียว) ---------- */
 function renderLog(){
@@ -768,7 +866,7 @@ function renderDash(){
   // ----- กล่องรายงาน: งบประมาณ · ใช้ไปแล้ว · ระยะเวลาที่ใช้ไป -----
   const bud=DATA.budget||[];
   const planned=bud.reduce((a,r)=>a+(+r.planned||0),0);
-  const actual=bud.reduce((a,r)=>a+(+r.actual||0),0);
+  const actual=(DATA.txns||[]).filter(t=>t.type==='out').reduce((a,t)=>a+(+t.amount||0),0);  // รายจ่ายจริงจากสมุดบัญชี
   const usedPct=planned?Math.round(actual/planned*100):0;
   let dates=[]; Object.keys(DATA).forEach(k=>{ if(Array.isArray(DATA[k])) DATA[k].forEach(it=>{ if(it&&it.created) dates.push(it.created); }); });
   let elapsed='—', startSub='ยังไม่มีวันที่เริ่ม';
